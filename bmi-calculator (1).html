@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMI · 体脂率计算器</title>
+<style>
+@import url('https://fonts.loli.net/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Lato:wght@300;400;700&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f7f5f0; --white: #fff; --ink: #1a1a1a; --mid: #666; --faint: #d8d4cc;
+  --accent: #2d6a4f; --al: #e8f5ef;
+  --sky: #1a4a7a;    --sl: #eaf1f9;
+  --teal: #0e7c61;   --tl: #e2f7ef;
+  --warn: #b5621b;   --wl: #fdf0e6;
+  --danger: #9b2335; --dl: #fdeef0;
+}
+body {
+  background: var(--bg); font-family: 'Lato', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  min-height: 100vh; display: flex; align-items: flex-start;
+  justify-content: center; padding: 36px 16px 64px;
+}
+.wrapper { width: 100%; max-width: 440px; }
+
+/* Header */
+.header { text-align:center; margin-bottom:26px; animation:fadeUp .5s ease both; }
+.header-label { display:block; font-size:10px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+.header h1 { font-family:'Playfair Display',serif; font-size:32px; font-weight:700; color:var(--ink); line-height:1.1; }
+.header h1 span { font-style:italic; font-weight:400; color:var(--mid); }
+.header p { margin-top:8px; font-size:13px; color:var(--mid); font-weight:300; line-height:1.6; }
+
+/* Card */
+.card { background:var(--white); border-radius:20px; padding:22px 20px; box-shadow:0 2px 20px rgba(0,0,0,.07); animation:fadeUp .55s ease .08s both; }
+
+.unit-toggle { display:flex; background:var(--bg); border-radius:10px; padding:4px; margin-bottom:18px; border:1px solid var(--faint); }
+.unit-btn { flex:1; padding:8px; border:none; background:transparent; font-family:'Lato',sans-serif; font-size:12px; font-weight:700; color:var(--mid); border-radius:7px; cursor:pointer; transition:all .2s; }
+.unit-btn.active { background:var(--white); color:var(--ink); box-shadow:0 1px 6px rgba(0,0,0,.1); }
+
+.fields { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--mid); }
+.iw { position:relative; }
+.iw input {
+  width:100%; padding:11px 28px 11px 11px;
+  background:var(--bg); border:1.5px solid var(--faint); border-radius:10px;
+  font-family:'Lato',sans-serif; font-size:18px; font-weight:700; color:var(--ink);
+  transition:border-color .2s; -webkit-appearance:none;
+}
+.iw input:focus { outline:none; border-color:var(--accent); background:var(--white); }
+.iu { position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:700; color:var(--faint); pointer-events:none; }
+
+.gender-row { margin-bottom:16px; }
+.gender-row .gl { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--mid); display:block; margin-bottom:7px; }
+.gender-btns { display:flex; gap:8px; }
+.g-btn { flex:1; padding:9px; border:1.5px solid var(--faint); background:var(--bg); border-radius:9px; font-family:'Lato',sans-serif; font-size:13px; font-weight:700; color:var(--mid); cursor:pointer; transition:all .2s; }
+.g-btn.active { border-color:var(--accent); background:var(--al); color:var(--accent); }
+
+.calc-btn { width:100%; padding:14px; background:var(--ink); color:#fff; border:none; border-radius:12px; font-family:'Lato',sans-serif; font-size:14px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:transform .1s,opacity .2s; }
+.calc-btn:active { transform:scale(.98); opacity:.85; }
+
+/* Results */
+.results { display:none; margin-top:18px; }
+.results.show { display:block; animation:popIn .3s ease both; }
+
+.dual { display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:11px; }
+
+.rblock { border-radius:14px; padding:14px 13px; }
+.rb-label { font-size:9px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; opacity:.6; display:block; margin-bottom:3px; }
+.rb-num { font-family:'Playfair Display',serif; font-size:42px; font-weight:700; line-height:1; margin-bottom:5px; }
+.rb-num sup { font-size:14px; font-weight:400; vertical-align:super; }
+.rb-tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; padding:3px 9px; border-radius:20px; background:rgba(255,255,255,.55); margin-bottom:8px; }
+
+.bar-wrap { margin-top:4px; }
+.sbar { height:5px; border-radius:3px; position:relative; overflow:visible; margin-bottom:5px; }
+.bmi-bar { background:linear-gradient(to right,#4fc3f7 0%,#66bb6a 30%,#aed581 50%,#ffa726 68%,#ef5350 100%); }
+.bf-bar  { background:linear-gradient(to right,#4fc3f7 0%,#26c6da 15%,#66bb6a 35%,#aed581 58%,#ffa726 78%,#ef5350 100%); }
+.sdot {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  width:12px; height:12px; background:var(--white);
+  border:2.5px solid var(--ink); border-radius:50%;
+  box-shadow:0 2px 5px rgba(0,0,0,.2);
+  transition:left .55s cubic-bezier(.34,1.56,.64,1);
+}
+.slabels { display:flex; justify-content:space-between; }
+.slabels span { font-size:9px; font-weight:700; opacity:.45; }
+
+.detail-strip { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.di { background:var(--white); border-radius:10px; padding:9px 11px; border:1px solid rgba(0,0,0,.06); }
+.di .dk { font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--mid); margin-bottom:2px; }
+.di .dv { font-size:13px; font-weight:700; color:var(--ink); line-height:1.3; }
+
+.motto { margin-top:10px; background:var(--ink); color:#fff; border-radius:12px; padding:13px 16px; display:flex; align-items:center; gap:11px; }
+.motto-icon { font-size:22px; flex-shrink:0; }
+.motto-text { font-size:13px; font-weight:700; line-height:1.45; }
+.motto-sub  { font-size:11px; font-weight:300; opacity:.65; margin-top:2px; }
+
+.caveat { margin-top:9px; font-size:10px; color:var(--mid); opacity:.6; line-height:1.55; font-style:italic; }
+
+/* color themes */
+.bmi-uw { background:var(--sl); color:var(--sky); }
+.bmi-ok { background:var(--al); color:var(--accent); }
+.bmi-ow { background:var(--wl); color:var(--warn); }
+.bmi-ob { background:var(--dl); color:var(--danger); }
+
+.bf-vl  { background:var(--sl);  color:var(--sky); }
+.bf-ath { background:var(--tl);  color:var(--teal); }
+.bf-hlt { background:var(--al);  color:var(--accent); }
+.bf-ow  { background:var(--wl);  color:var(--warn); }
+.bf-ob  { background:var(--dl);  color:var(--danger); }
+
+/* Reference card */
+.ref-card { background:var(--white); border-radius:16px; padding:18px 18px 14px; margin-top:13px; box-shadow:0 2px 12px rgba(0,0,0,.05); animation:fadeUp .5s ease .12s both; }
+.ref-tabs { display:flex; gap:5px; margin-bottom:14px; }
+.ref-tab { flex:1; padding:7px 4px; border:1.5px solid var(--faint); background:var(--bg); border-radius:8px; font-family:'Lato',sans-serif; font-size:11px; font-weight:700; color:var(--mid); cursor:pointer; transition:all .2s; }
+.ref-tab.active { border-color:var(--ink); background:var(--ink); color:#fff; }
+.ref-panel { display:none; }
+.ref-panel.active { display:block; }
+.rt { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--mid); margin-bottom:10px; }
+.rrows { display:flex; flex-direction:column; gap:5px; }
+.rr { display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:8px; transition:background .15s; }
+.rr .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.rr .rl  { width:52px; font-size:11px; font-weight:700; color:var(--mid); flex-shrink:0; }
+.rr .rv  { flex:1; font-size:12px; font-weight:700; color:var(--ink); }
+.rr .rd  { font-size:11px; font-weight:300; color:var(--mid); }
+.rr.hl   { background:#fffbe6; }
+.ref-note { margin-top:10px; font-size:10px; color:#aaa; line-height:1.6; }
+
+.footer { text-align:center; margin-top:22px; font-size:11px; color:var(--faint); letter-spacing:.05em; animation:fadeUp .5s ease .2s both; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes popIn  { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <span class="header-label">健康工具 · 即算即知</span>
+    <h1>BMI <span>&amp; 体脂率</span></h1>
+    <p>输入身高、体重与年龄<br>同时估算体重指数与体脂率</p>
+  </div>
+
+  <div class="card">
+    <div class="unit-toggle">
+      <button class="unit-btn active" onclick="setUnit('metric')">公制 · 厘米 / 千克</button>
+      <button class="unit-btn" onclick="setUnit('imperial')">英制 · 英寸 / 磅</button>
+    </div>
+
+    <div class="fields">
+      <div class="field">
+        <label>身高</label>
+        <div class="iw">
+          <input type="number" id="height" placeholder="165" inputmode="decimal" min="50" max="250">
+          <span class="iu" id="h-unit">cm</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>体重</label>
+        <div class="iw">
+          <input type="number" id="weight" placeholder="55" inputmode="decimal" min="10" max="300">
+          <span class="iu" id="w-unit">kg</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>年龄</label>
+        <div class="iw">
+          <input type="number" id="age" placeholder="28" inputmode="numeric" min="10" max="100">
+          <span class="iu">岁</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gender-row">
+      <span class="gl">性别</span>
+      <div class="gender-btns">
+        <button class="g-btn active" onclick="setGender('female')">👩 女</button>
+        <button class="g-btn" onclick="setGender('male')">👨 男</button>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">立即计算 →</button>
+
+    <div class="results" id="results">
+      <div class="dual">
+        <div class="rblock" id="bmi-block">
+          <span class="rb-label">BMI 体重指数</span>
+          <div class="rb-num" id="bmi-num">—</div>
+          <div class="rb-tag" id="bmi-tag">—</div>
+          <div class="bar-wrap">
+            <div class="sbar bmi-bar"><div class="sdot" id="bmi-dot" style="left:50%"></div></div>
+            <div class="slabels"><span>偏瘦</span><span>正常</span><span>超重</span><span>肥胖</span></div>
+          </div>
+        </div>
+        <div class="rblock" id="bf-block">
+          <span class="rb-label">体脂率 估算</span>
+          <div class="rb-num" id="bf-num">—</div>
+          <div class="rb-tag" id="bf-tag">—</div>
+          <div class="bar-wrap">
+            <div class="sbar bf-bar"><div class="sdot" id="bf-dot" style="left:50%"></div></div>
+            <div class="slabels"><span>极低</span><span>健美</span><span>健康</span><span>超重</span><span>肥胖</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-strip">
+        <div class="di"><div class="dk">BMI 健康体重范围</div><div class="dv" id="d-range">—</div></div>
+        <div class="di"><div class="dk">与正常值相差</div><div class="dv" id="d-diff">—</div></div>
+        <div class="di"><div class="dk">体脂分类</div><div class="dv" id="d-bfcat">—</div></div>
+        <div class="di"><div class="dk">健康体脂参考范围</div><div class="dv" id="d-bfrange">—</div></div>
+      </div>
+
+      <div class="motto">
+        <div class="motto-icon" id="motto-icon">💪</div>
+        <div>
+          <div class="motto-text" id="motto-text">—</div>
+          <div class="motto-sub"  id="motto-sub">—</div>
+        </div>
+      </div>
+
+      <p class="caveat">※ 体脂率为 Deurenberg 公式估算（误差约 ±3–5%），仅供参考，不代表医学诊断。建议用体脂秤或皮脂钳实测以获得更精准数值。</p>
+    </div>
+  </div>
+
+  <!-- Reference card -->
+  <div class="ref-card">
+    <div class="ref-tabs">
+      <button class="ref-tab active" onclick="switchTab('bmi')">BMI 标准</button>
+      <button class="ref-tab" onclick="switchTab('bff')">女性体脂 ♀</button>
+      <button class="ref-tab" onclick="switchTab('bfm')">男性体脂 ♂</button>
+    </div>
+
+    <div class="ref-panel active" id="panel-bmi">
+      <div class="rt">中国成人 BMI 分类（WS/T 428-2013）</div>
+      <div class="rrows">
+        <div class="rr" data-bc="bmi-uw"><div class="dot" style="background:#4fc3f7"></div><div class="rl">偏瘦</div><div class="rv">&lt; 18.5</div><div class="rd">营养不足</div></div>
+        <div class="rr" data-bc="bmi-ok"><div class="dot" style="background:#66bb6a"></div><div class="rl">正常 ✓</div><div class="rv">18.5 – 23.9</div><div class="rd">健康体重</div></div>
+        <div class="rr" data-bc="bmi-ow"><div class="dot" style="background:#ffa726"></div><div class="rl">超重</div><div class="rv">24.0 – 27.9</div><div class="rd">需注意控制</div></div>
+        <div class="rr" data-bc="bmi-ob"><div class="dot" style="background:#ef5350"></div><div class="rl">肥胖</div><div class="rv">≥ 28.0</div><div class="rd">健康风险升高</div></div>
+      </div>
+      <p class="ref-note">※ 中国男女成人使用同一套BMI标准。男女差异体现在体脂率（见右侧标签页）。</p>
+    </div>
+
+    <div class="ref-panel" id="panel-bff">
+      <div class="rt">女性体脂率参考分类 ♀</div>
+      <div class="rrows">
+        <div class="rr" data-fc="bf-vl" ><div class="dot" style="background:#4fc3f7"></div><div class="rl">极低</div><div class="rv">&lt; 10%</div><div class="rd">精益求精，突破自我</div></div>
+        <div class="rr" data-fc="bf-ath"><div class="dot" style="background:#26c6da"></div><div class="rl">运动健美</div><div class="rv">10 – 20%</div><div class="rd">坚持训练，赠刻更强</div></div>
+        <div class="rr" data-fc="bf-hlt"><div class="dot" style="background:#66bb6a"></div><div class="rl">健康 ✓</div><div class="rv">20 – 28%</div><div class="rd">保持平衡，健康最美</div></div>
+        <div class="rr" data-fc="bf-ow" ><div class="dot" style="background:#ffa726"></div><div class="rl">超重</div><div class="rv">28 – 35%</div><div class="rd">管住饮食，动起来</div></div>
+        <div class="rr" data-fc="bf-ob" ><div class="dot" style="background:#ef5350"></div><div class="rl">肥胖</div><div class="rv">≥ 35%</div><div class="rd">刻不容缓，从今改变！</div></div>
+      </div>
+      <p class="ref-note">※ 女性因生理需要，正常体脂率高于男性。极低体脂（&lt;10%）需注意激素与骨骼健康。</p>
+    </div>
+
+    <div class="ref-panel" id="panel-bfm">
+      <div class="rt">男性体脂率参考分类 ♂</div>
+      <div class="rrows">
+        <div class="rr" data-mc="bf-vl" ><div class="dot" style="background:#4fc3f7"></div><div class="rl">极低</div><div class="rv">&lt; 6%</div><div class="rd">自律极致，成就非凡</div></div>
+        <div class="rr" data-mc="bf-ath"><div class="dot" style="background:#26c6da"></div><div class="rl">运动健美</div><div class="rv">6 – 13%</div><div class="rd">刻苦训练，进阶体能</div></div>
+        <div class="rr" data-mc="bf-hlt"><div class="dot" style="background:#66bb6a"></div><div class="rl">健康 ✓</div><div class="rv">13 – 20%</div><div class="rd">健康为本，生活兼得</div></div>
+        <div class="rr" data-mc="bf-ow" ><div class="dot" style="background:#ffa726"></div><div class="rl">超重</div><div class="rv">20 – 25%</div><div class="rd">减少脂肪，提升自己</div></div>
+        <div class="rr" data-mc="bf-ob" ><div class="dot" style="background:#ef5350"></div><div class="rl">肥胖</div><div class="rv">≥ 25%</div><div class="rd">健康优先，行动刻不容缓！</div></div>
+      </div>
+      <p class="ref-note">※ 男性必要体脂约 3–5%，低于此值有健康风险。</p>
+    </div>
+  </div>
+
+  <div class="footer">AI私域赚钱星球 · 健康工具</div>
+</div>
+
+<script>
+let unit = 'metric', gender = 'female';
+
+function setUnit(u) {
+  unit = u;
+  document.querySelectorAll('.unit-btn').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&u==='metric')||(i===1&&u==='imperial')));
+  document.getElementById('h-unit').textContent = u==='metric'?'cm':'in';
+  document.getElementById('w-unit').textContent = u==='metric'?'kg':'lbs';
+  document.getElementById('height').placeholder = u==='metric'?'165':'65';
+  document.getElementById('weight').placeholder = u==='metric'?'55':'121';
+  document.getElementById('results').classList.remove('show');
+}
+
+function setGender(g) {
+  gender = g;
+  document.querySelectorAll('.g-btn').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&g==='female')||(i===1&&g==='male')));
+  document.getElementById('results').classList.remove('show');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.ref-tab').forEach((b,i) =>
+    b.classList.toggle('active', ['bmi','bff','bfm'][i]===tab));
+  document.querySelectorAll('.ref-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+// ── Body fat category tables (from reference image) ──
+const BF_TABLE = {
+  female: [
+    { key:'bf-vl',  max:10,  label:'极低体脂',  range:'< 10%',  icon:'🏆', motto:'精益求精，突破自我。',        sub:'体脂极低，注意激素与骨骼健康' },
+    { key:'bf-ath', max:20,  label:'运动健美',   range:'10–20%', icon:'🏃', motto:'坚持训练，赠刻更强的自己。',  sub:'保持训练节奏，注重营养补充' },
+    { key:'bf-hlt', max:28,  label:'健康 ✓',     range:'20–28%', icon:'❤️', motto:'保持平衡，健康是最美的状态。',sub:'继续保持，均衡饮食与规律运动' },
+    { key:'bf-ow',  max:35,  label:'超重',       range:'28–35%', icon:'🔥', motto:'管住饮食，动起来，改变现在。',sub:'减少精制糖与饱和脂肪摄入' },
+    { key:'bf-ob',  max:999, label:'肥胖',       range:'≥ 35%',  icon:'⚠️', motto:'刻不容缓，从今天开始改变！',  sub:'建议咨询营养师或医生制定方案' },
+  ],
+  male: [
+    { key:'bf-vl',  max:6,   label:'极低体脂',  range:'< 6%',   icon:'👑', motto:'自律极致，成就非凡。',          sub:'竞技状态，注意恢复与营养补充' },
+    { key:'bf-ath', max:13,  label:'运动健美',   range:'6–13%',  icon:'🏋️', motto:'刻苦训练，进阶更强体能。',     sub:'保持训练，注重蛋白质摄入' },
+    { key:'bf-hlt', max:20,  label:'健康 ✓',     range:'13–20%', icon:'🛡️', motto:'健康为本，生活与身材兼得。',   sub:'继续保持，均衡饮食与规律运动' },
+    { key:'bf-ow',  max:25,  label:'超重',       range:'20–25%', icon:'🔄', motto:'减少脂肪，提升未来的自己。',   sub:'减少精制碳水，增加有氧运动量' },
+    { key:'bf-ob',  max:999, label:'肥胖',       range:'≥ 25%',  icon:'⚠️', motto:'健康优先，行动刻不容缓！',     sub:'建议咨询医生或营养师制定方案' },
+  ],
+};
+
+function getBfCat(bf, isF) {
+  const table = BF_TABLE[isF ? 'female' : 'male'];
+  return table.find(c => bf < c.max) || table[table.length - 1];
+}
+
+function bmiDotPos(bmi) { return Math.min(Math.max((bmi - 10) / 30 * 100, 2), 98); }
+function bfDotPos(bf, isF) {
+  const [lo, hi] = isF ? [4, 45] : [1, 38];
+  return Math.min(Math.max((bf - lo) / (hi - lo) * 100, 2), 98);
+}
+
+function calculate() {
+  const hVal = parseFloat(document.getElementById('height').value);
+  const wVal = parseFloat(document.getElementById('weight').value);
+  const age  = parseFloat(document.getElementById('age').value);
+
+  if (!hVal || !wVal || !age || hVal <= 0 || wVal <= 0 || age < 10 || age > 100) {
+    shake(document.querySelector('.calc-btn')); return;
+  }
+
+  const isMetric = unit === 'metric';
+  const hM  = isMetric ? hVal / 100 : hVal * 0.0254;
+  const wKg = isMetric ? wVal : wVal * 0.453592;
+
+  // BMI
+  const bmi  = wKg / (hM * hM);
+  const bmiR = Math.round(bmi * 10) / 10;
+  let bmiClass, bmiTag;
+  if      (bmi < 18.5) { bmiClass = 'bmi-uw'; bmiTag = '偏瘦'; }
+  else if (bmi < 24.0) { bmiClass = 'bmi-ok'; bmiTag = '正常 ✓'; }
+  else if (bmi < 28.0) { bmiClass = 'bmi-ow'; bmiTag = '超重'; }
+  else                 { bmiClass = 'bmi-ob'; bmiTag = '肥胖'; }
+
+  // Body fat — Deurenberg (1991)
+  // BF% = 1.2 × BMI + 0.23 × Age − 10.8 × Sex(male=1) − 5.4
+  const isF = gender === 'female';
+  const bf  = Math.max(1.2 * bmi + 0.23 * age - 10.8 * (isF ? 0 : 1) - 5.4, 1);
+  const bfR = Math.round(bf * 10) / 10;
+  const cat = getBfCat(bfR, isF);
+
+  // Healthy weight range
+  const minKg = 18.5 * hM * hM, maxKg = 23.9 * hM * hM;
+  let rangeStr, diffStr;
+  if (isMetric) {
+    rangeStr = `${minKg.toFixed(1)} – ${maxKg.toFixed(1)} kg`;
+    if      (bmiClass === 'bmi-uw') diffStr = `还差 ${(minKg - wKg).toFixed(1)} kg`;
+    else if (bmiClass !== 'bmi-ok') diffStr = `超出 ${(wKg - maxKg).toFixed(1)} kg`;
+    else                             diffStr = '处于健康区间 ✓';
+  } else {
+    rangeStr = `${(minKg/0.453592).toFixed(0)} – ${(maxKg/0.453592).toFixed(0)} lbs`;
+    if      (bmiClass === 'bmi-uw') diffStr = `还差 ${((minKg - wKg)/0.453592).toFixed(0)} lbs`;
+    else if (bmiClass !== 'bmi-ok') diffStr = `超出 ${((wKg - maxKg)/0.453592).toFixed(0)} lbs`;
+    else                             diffStr = '处于健康区间 ✓';
+  }
+
+  // Update DOM
+  document.getElementById('bmi-num').textContent   = bmiR;
+  document.getElementById('bmi-tag').textContent   = bmiTag;
+  document.getElementById('bmi-block').className   = 'rblock ' + bmiClass;
+  document.getElementById('bmi-dot').style.left    = bmiDotPos(bmi) + '%';
+
+  document.getElementById('bf-num').innerHTML      = bfR + '<sup>%</sup>';
+  document.getElementById('bf-tag').textContent    = cat.label;
+  document.getElementById('bf-block').className    = 'rblock ' + cat.key;
+  document.getElementById('bf-dot').style.left     = bfDotPos(bfR, isF) + '%';
+
+  document.getElementById('d-range').textContent   = rangeStr;
+  document.getElementById('d-diff').textContent    = diffStr;
+  document.getElementById('d-bfcat').textContent   = cat.label;
+  document.getElementById('d-bfrange').textContent = cat.range;
+
+  document.getElementById('motto-icon').textContent = cat.icon;
+  document.getElementById('motto-text').textContent = cat.motto;
+  document.getElementById('motto-sub').textContent  = cat.sub;
+
+  document.getElementById('results').classList.add('show');
+
+  // Highlight ref rows
+  document.querySelectorAll('[data-bc]').forEach(r => r.classList.toggle('hl', r.dataset.bc === bmiClass));
+  document.querySelectorAll('[data-fc]').forEach(r => r.classList.toggle('hl', r.dataset.fc === cat.key));
+  document.querySelectorAll('[data-mc]').forEach(r => r.classList.toggle('hl', r.dataset.mc === cat.key));
+
+  // Auto-switch to gender-specific BF tab
+  switchTab(isF ? 'bff' : 'bfm');
+}
+
+function shake(el) {
+  ['-6px','6px','-4px','0px'].forEach((x, i) =>
+    setTimeout(() => { el.style.transform = `translateX(${x})`; }, i * 80));
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+</script>
+</body>
+</html>
